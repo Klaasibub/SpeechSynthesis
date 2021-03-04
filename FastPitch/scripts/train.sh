@@ -2,14 +2,12 @@
 
 export OMP_NUM_THREADS=1
 
-: ${NUM_GPUS:=8}
-: ${BS:=32}
-: ${GRAD_ACCUMULATION:=1}
-: ${OUTPUT_DIR:="./output"}
-: ${AMP:=false}
-: ${EPOCHS:=1500}
-
-[ "$AMP" == "true" ] && AMP_FLAG="--amp"
+: ${NUM_GPUS:=2}
+: ${BS:=20}
+: ${GRAD_ACCUMULATION:=2}
+: ${OUTPUT_DIR:="/home/zolkin/output"}
+: ${AMP:=true}
+: ${EPOCHS:=2000}
 
 # Adjust env variables to maintain the global batch size
 #
@@ -22,13 +20,15 @@ echo -e "\nSetup: ${NUM_GPUS}x${BS}x${GRAD_ACCUMULATION} - global batch size ${G
 
 mkdir -p "$OUTPUT_DIR"
 python -m torch.distributed.launch --nproc_per_node ${NUM_GPUS} train.py \
+    --amp \
     --cuda \
+    --checkpoint-path "/home/zolkin/output/FastPitch_checkpoint_100.pt" \
     -o "$OUTPUT_DIR/" \
     --log-file "$OUTPUT_DIR/nvlog.json" \
-    --dataset-path LJSpeech-1.1 \
-    --training-files filelists/ljs_mel_dur_pitch_text_train_filelist.txt \
-    --validation-files filelists/ljs_mel_dur_pitch_text_test_filelist.txt \
-    --pitch-mean-std-file LJSpeech-1.1/pitch_char_stats__ljs_audio_text_train_filelist.json \
+    --dataset-path /home/zolkin/SpeechSynthesis/FastPitch/LibriTTS \
+    --training-files filelists/libritts/train_mel_dur_pitch.txt \
+    --validation-files filelists/libritts/val_mel_dur_pitch.txt \
+    --pitch-mean-std-file /home/zolkin/SpeechSynthesis/FastPitch/LibriTTS/pitch_char_stats__train_fix_paths.json \
     --epochs ${EPOCHS} \
     --epochs-per-checkpoint 100 \
     --warmup-steps 1000 \
@@ -40,4 +40,5 @@ python -m torch.distributed.launch --nproc_per_node ${NUM_GPUS} train.py \
     --pitch-predictor-loss-scale 0.1 \
     --weight-decay 1e-6 \
     --gradient-accumulation-steps ${GRAD_ACCUMULATION} \
+    --n-speakers 10000
     ${AMP_FLAG}

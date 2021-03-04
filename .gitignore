@@ -1,0 +1,5 @@
+__pycache__/
+SBATCH_*
+LibriTTS/
+pretrained_models/
+apex/
