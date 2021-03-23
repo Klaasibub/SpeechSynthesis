@@ -11,4 +11,4 @@ source activate voice
 
 echo Assigned GPUs: $CUDA_VISIBLE_DEVICES
 
-srun sh ./inference.sh
+srun sh ./inference.sh -p=data/my_params.yaml

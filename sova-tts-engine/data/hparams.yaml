@@ -9,7 +9,7 @@ iters_per_checkpoint: 1000
 output_dir: "/home/sidenko/my/output"
 log_dir: "/home/sidenko/my/logdir"
 
-checkpoint: "/home/sidenko/my/output/checkpoint_10000"
+checkpoint: "/home/sidenko/my/output/checkpoint_71000"
 warm_start: true
 
 seed: 1234
