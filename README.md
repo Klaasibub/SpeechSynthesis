@@ -8,6 +8,7 @@ The original models are available in this repository:
 * Synthesiser
   * https://github.com/NVIDIA/DeepLearningExamples/tree/master/PyTorch/SpeechSynthesis
   * https://github.com/sovaai/sova-tts-engine
+  * https://github.com/CorentinJ/Real-Time-Voice-Clonning
 * Vocoder
   * https://github.com/sovaai/sova-tts-vocoder
   * https://github.com/NVIDIA/waveglow
