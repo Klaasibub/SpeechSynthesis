@@ -70,7 +70,7 @@ class TextMelLoader(torch.utils.data.Dataset):
     def __init__(self, text_handler, filelist_path, hparams):
         self.text_handler = text_handler
 
-        self.data = load_filepaths_and_text(filelist_path)
+        self.data = load_fpaths_embed_text(filelist_path)
         self.audio_path = hparams.audios_path
         self.alignment_path = hparams.alignments_path
 
@@ -122,10 +122,12 @@ class TextMelLoader(torch.utils.data.Dataset):
         mask_stress =  self._prob2bool(self.mask_stress)
         mask_phonemes = self._prob2bool(self.mask_phonemes)
 
-        audio_name, text = sample
+        audio_name, embed_path, text = sample
 
         sequence = self.get_text(text, mask_stress, mask_phonemes)
         mel = self.get_mel(audio_name)
+
+        speaker_emb = np.load(embed_path)
 
         alignment = None
         if self.get_alignments:
@@ -136,7 +138,7 @@ class TextMelLoader(torch.utils.data.Dataset):
         if self.use_mmi:
             ctc_sequence = self.get_ctc_text(sequence.data.cpu().numpy())
 
-        return sequence, mel, alignment, ctc_sequence
+        return sequence, mel, alignment, ctc_sequence, speaker_emb.astype(np.float32)
 
 
     def get_text(self, text, mask_stress=None, mask_phonemes=None):

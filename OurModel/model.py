@@ -555,8 +555,7 @@ class Decoder(nn.Module):
         decoder_inputs = torch.cat((decoder_input, decoder_inputs), dim=0)
         decoder_inputs = self.prenet(decoder_inputs)
 
-        self.initialize_decoder_states(
-            memory, mask=~utl.get_mask_from_lengths(memory_lengths))
+        self.initialize_decoder_states(memory, mask=~utl.get_mask_from_lengths(memory_lengths))
 
         mel_outputs, gate_outputs, alignments, decoder_outputs = [], [], [], []
         while len(mel_outputs) < decoder_inputs.size(0) - 1:
@@ -658,22 +657,19 @@ class Tacotron2(nn.Module):
         if hparams.use_gst:
             self.gst = GST(hparams)
 
-        self.speaker_emb = None
-        if hparams.use_speaker_emb:
-            self.speaker_emb = SpeakerEmbedding(hparams)
-
         self.to(self.device)
 
 
     def parse_batch(self, batch):
-        inputs, alignments, inputs_ctc = batch
+        inputs, alignments, inputs_ctc, speaker_emb = batch
 
         inputs = utl.Inputs(
             text=utl.to_gpu(inputs.text).long(),
             mels=utl.to_gpu(inputs.mels).float(),
             gate=utl.to_gpu(inputs.gate).float(),
             text_len=utl.to_gpu(inputs.text_len).long(),
-            mel_len=utl.to_gpu(inputs.mel_len).long()
+            mel_len=utl.to_gpu(inputs.mel_len).long(),
+            speaker_emb=speaker_emb,
         )
 
         if alignments is not None:
@@ -712,8 +708,8 @@ class Tacotron2(nn.Module):
         return decoder_outputs
 
 
-    def forward(self, inputs, **kwargs):
-        text, mels, _, speaker_emb, text_lengths, output_lengths = inputs
+    def forward(self, inputs **kwargs):
+        text, mels, _, text_lengths, output_lengths, speaker_emb = inputs
 
         text_lengths, output_lengths = text_lengths.data, output_lengths.data
 
@@ -723,9 +719,9 @@ class Tacotron2(nn.Module):
         if self.gst is not None:
             gst_outputs = self.gst(inputs=mels, input_lengths=output_lengths)
             encoder_outputs += gst_outputs.style_emb.expand_as(encoder_outputs)
-        
-        if self.speaker_emb:
-            encoder_outputs += gst_
+
+        # TODO: maybe check is not None
+        encoder_outputs += speaker_emb.expand_as(encoder_outputs)
 
         p_teacher_forcing = 1.0
         if self.tf_replacement == "global_mean":
@@ -755,9 +751,10 @@ class Tacotron2(nn.Module):
 
 
     def inference(self, inputs, **kwargs):
+        text, speaker_emb = inputs
         max_decoder_steps = kwargs.get("max_decoder_steps", None)
 
-        embedded_inputs = self.embedding(inputs).transpose(1, 2)
+        embedded_inputs = self.embedding(text).transpose(1, 2)
         encoder_outputs = self.encoder.inference(embedded_inputs)
 
         if self.gst is not None:
@@ -767,6 +764,9 @@ class Tacotron2(nn.Module):
             gst_output = self.gst.inference(encoder_outputs, reference_mel, token_idx)
             if gst_output is not None:
                 encoder_outputs += gst_output
+
+        # TODO: maybe check is not None
+        encoder_outputs += speaker_emb.expand_as(encoder_outputs)
 
         mel_outputs, gate_outputs, alignments = self.decoder.inference(encoder_outputs, max_decoder_steps)
 

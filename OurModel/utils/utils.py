@@ -35,7 +35,7 @@ from collections import namedtuple
 
 import torch
 
-Inputs = namedtuple("Inputs", ["text", "mels", "gate", "text_len", "mel_len"])
+Inputs = namedtuple("Inputs", ["text", "mels", "gate", "text_len", "mel_len", "speaker_emb"])
 
 InputsCTC = namedtuple("InputsCTC", ["text", "length"])
 
@@ -114,6 +114,12 @@ def load_filepaths_and_text(filename, split="|"):
     with open(filename, encoding='utf-8') as f:
         filepaths_and_text = [line.strip().split(split)[:2] for line in f]
     return filepaths_and_text
+
+
+def load_fpaths_embed_text(filename, split="|"):
+    with open(filename, encoding='utf-8') as f:
+        fpaths_embed_text = [line.strip().split(split)[:3] for line in f]
+    return fpaths_embed_text
 
 
 def to_gpu(x):

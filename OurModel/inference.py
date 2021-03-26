@@ -45,12 +45,14 @@ def inference(hparams):
 
     text = """где хохлатые хохотушки хохотом хохотали и кричали турке, который начерно обкурен трубкой: не кури, турка, трубку, купи лучше кипу пик, лучше пик кипу купи,
               а то придет бомбардир из Бранденбурга — бомбами забомбардирует"""
-    sequence = textLoader.get_text(text)
-    sequence = np.array(sequence)[None, :]
-    sequence = torch.from_numpy(sequence).to(device='cuda', dtype=torch.int64)
+    embed_path = ""
+    embed = np.load(embed_path)
+    text = textLoader.get_text(text)
+    text = np.array(text)[None, :]
+    text = torch.from_numpy(text).to(device='cuda', dtype=torch.int64)
 
     # ================ INFERENCE! ===================
-    outputs = model.inference(sequence)
+    outputs = model.inference((text, embed.astype(np.float32)))
     for idx, mel in enumerate(outputs.mels):
         filename = f'../sova-tts-vocoder/mels/audio_{idx}.pt'
         torch.save(mel, filename)
