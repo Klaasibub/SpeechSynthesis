@@ -81,11 +81,12 @@ hparams = HParams(
         symmetric_mels = True,                      # Sets mel range to [-max_abs_value, max_abs_value] if True,
                                                     #               and [0, max_abs_value] if False
         trim_silence = True,                        # Use with sample_rate of 16000 for best results
+        reduce_noise = True,                        # Reduce mouse/keyboard noise from start/end.
 
         ### SV2TTS
         speaker_embedding_size = 256,               # Dimension for the speaker embedding
         silence_min_duration_split = 0.4,           # Duration in seconds of a silence for an utterance to be split
-        utterance_min_duration = 1.6,               # Duration in seconds below which utterances are discarded
+        utterance_min_duration = 2,                 # Duration in seconds below which utterances are discarded
         )
 
 def hparams_debug_string():

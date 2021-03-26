@@ -2,12 +2,14 @@ from multiprocessing.pool import Pool
 from synthesizer import audio
 from functools import partial
 from itertools import chain
+import noisereduce as nr
 from encoder import inference as encoder
 from pathlib import Path
 from utils import logmmse
 from tqdm import tqdm
 import numpy as np
 import librosa
+import os
 
 
 def preprocess_dataset(datasets_root: Path, out_dir: Path, n_processes: int,
@@ -18,20 +20,22 @@ def preprocess_dataset(datasets_root: Path, out_dir: Path, n_processes: int,
     input_dirs = [dataset_root.joinpath(subfolder.strip()) for subfolder in subfolders.split(",")]
     print("\n    ".join(map(str, ["Using data from:"] + input_dirs)))
     assert all(input_dir.exists() for input_dir in input_dirs)
-    
+
     # Create the output directories for each output file type
     out_dir.joinpath("mels").mkdir(exist_ok=True)
     out_dir.joinpath("audio").mkdir(exist_ok=True)
-    
+
     # Create a metadata file
     metadata_fpath = out_dir.joinpath("train.txt")
     metadata_file = metadata_fpath.open("a" if skip_existing else "w", encoding="utf-8")
 
     # Preprocess the dataset
     speaker_dirs = list(chain.from_iterable(input_dir.glob("*") for input_dir in input_dirs))
+    print("speaker dirs:", speaker_dirs)
     func = partial(preprocess_speaker, out_dir=out_dir, skip_existing=skip_existing, 
                    hparams=hparams, no_alignments=no_alignments)
     job = Pool(n_processes).imap(func, speaker_dirs)
+    print(speaker_dirs)
     for speaker_metadata in tqdm(job, datasets_name, len(speaker_dirs), unit="speakers"):
         for metadatum in speaker_metadata:
             metadata_file.write("|".join(str(x) for x in metadatum) + "\n")
@@ -53,61 +57,37 @@ def preprocess_dataset(datasets_root: Path, out_dir: Path, n_processes: int,
 
 def preprocess_speaker(speaker_dir, out_dir: Path, skip_existing: bool, hparams, no_alignments: bool):
     metadata = []
-    for book_dir in speaker_dir.glob("*"):
-        if no_alignments:
-            # Gather the utterance audios and texts
-            # LibriTTS uses .wav but we will include extensions for compatibility with other datasets
-            extensions = ["*.wav", "*.flac", "*.mp3"]
-            for extension in extensions:
-                wav_fpaths = book_dir.glob(extension)
+    wav_paths = []
+    book_dir = speaker_dir
+    extension = "*.wav"
+    utterances = []
+    with open("/home/sidenko/my/ru_dataset/part2.txt", "r", encoding="utf-8") as f:
+        lines = [line.split('|') for line in f.readlines() if len(line.split('|')) > 1]
+    for line in lines:
+        wav_fpath = f'/home/sidenko/my/ru_dataset/{line[0]}'
+        wav, _ = librosa.load(str(wav_fpath), hparams.sample_rate)
+        if hparams.rescale:
+            wav = wav / np.abs(wav).max() * hparams.rescaling_max
+        if hparams.reduce_noise:
+            edge = len(wav)/20
+            noisy_part = wav[:int(edge)]
+            wav = nr.reduce_noise(audio_clip=wav, noise_clip=noisy_part, verbose=False)
+            noisy_part = wav[-int(edge):]
+            wav = nr.reduce_noise(audio_clip=wav, noise_clip=noisy_part, verbose=False)
 
-                for wav_fpath in wav_fpaths:
-                    # Load the audio waveform
-                    wav, _ = librosa.load(str(wav_fpath), hparams.sample_rate)
-                    if hparams.rescale:
-                        wav = wav / np.abs(wav).max() * hparams.rescaling_max
 
-                    # Get the corresponding text
-                    # Check for .txt (for compatibility with other datasets)
-                    text_fpath = wav_fpath.with_suffix(".txt")
-                    if not text_fpath.exists():
-                        # Check for .normalized.txt (LibriTTS)
-                        text_fpath = wav_fpath.with_suffix(".normalized.txt")
-                        assert text_fpath.exists()
-                    with text_fpath.open("r") as text_file:
-                        text = "".join([line for line in text_file])
-                        text = text.replace("\"", "")
-                        text = text.strip()
+        text = line[1]
+        text = text.strip()
 
-                    # Process the utterance
-                    metadata.append(process_utterance(wav, text, out_dir, str(wav_fpath.with_suffix("").name),
-                                                      skip_existing, hparams))
-        else:
-            # Process alignment file (LibriSpeech support)
-            # Gather the utterance audios and texts
-            try:
-                alignments_fpath = next(book_dir.glob("*.alignment.txt"))
-                with alignments_fpath.open("r") as alignments_file:
-                    alignments = [line.rstrip().split(" ") for line in alignments_file]
-            except StopIteration:
-                # A few alignment files will be missing
-                continue
+        # Process the utterance
 
-            # Iterate over each entry in the alignments file
-            for wav_fname, words, end_times in alignments:
-                wav_fpath = book_dir.joinpath(wav_fname + ".flac")
-                assert wav_fpath.exists()
-                words = words.replace("\"", "").split(",")
-                end_times = list(map(float, end_times.replace("\"", "").split(",")))
+        meta = process_utterance(wav, text, out_dir, wav_fpath.split('.')[0].split('/')[-1], skip_existing, hparams)
 
-                # Process each sub-utterance
-                wavs, texts = split_on_silences(wav_fpath, words, end_times, hparams)
-                for i, (wav, text) in enumerate(zip(wavs, texts)):
-                    sub_basename = "%s_%02d" % (wav_fname, i)
-                    metadata.append(process_utterance(wav, text, out_dir, sub_basename,
-                                                      skip_existing, hparams))
+        if meta is not None:
+            metadata.append(meta)
+            wav_paths.append(wav_fpath)
 
-    return [m for m in metadata if m is not None]
+    return metadata #, wav_paths
 
 
 def split_on_silences(wav_fpath, words, end_times, hparams):
@@ -180,8 +160,8 @@ def split_on_silences(wav_fpath, words, end_times, hparams):
     # print("")
     
     return wavs, texts
-    
-    
+
+
 def process_utterance(wav: np.ndarray, text: str, out_dir: Path, basename: str, 
                       skip_existing: bool, hparams):
     ## FOR REFERENCE:
@@ -239,10 +219,11 @@ def embed_utterance(fpaths, encoder_model_fpath):
     np.save(embed_fpath, embed, allow_pickle=False)
     
  
-def create_embeddings(synthesizer_root: Path, encoder_model_fpath: Path, n_processes: int):
+def create_embeddings(synthesizer_root: Path, encoder_model_fpath: Path, n_processes: int, filename: str):
     wav_dir = synthesizer_root.joinpath("audio")
-    metadata_fpath = synthesizer_root.joinpath("train.txt")
-    assert wav_dir.exists() and metadata_fpath.exists()
+    metadata_fpath = synthesizer_root.joinpath(filename)
+    print(wav_dir, metadata_fpath)
+    assert wav_dir.exists()and metadata_fpath.exists()
     embed_dir = synthesizer_root.joinpath("embeds")
     embed_dir.mkdir(exist_ok=True)
     
