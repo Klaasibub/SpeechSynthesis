@@ -119,6 +119,12 @@ def load_filepaths_and_text(filename, split="|"):
 def load_fpaths_embed_text(filename, split="|"):
     with open(filename, encoding='utf-8') as f:
         fpaths_embed_text = [line.strip().split(split)[:3] for line in f]
+
+    # fpaths_embed_text = []
+    # with open(filename, encoding='utf-8') as f:
+    #     for line in f:
+    #         line = line.strip().split(split)
+    #        fpaths_embed_text.append((line[1],line[2],line[5]))
     return fpaths_embed_text
 
 

@@ -134,9 +134,9 @@ class ConvNorm(torch.nn.Module):
 
 
 class TacotronSTFT(torch.nn.Module):
-    def __init__(self, filter_length=1024, hop_length=256, win_length=1024,
-                 n_mel_channels=80, sampling_rate=22050, mel_fmin=0.0,
-                 mel_fmax=8000.0):
+    def __init__(self, filter_length=800, hop_length=200, win_length=1024,
+                 n_mel_channels=80, sampling_rate=16000, mel_fmin=55.0,
+                 mel_fmax=7600.0):
         super(TacotronSTFT, self).__init__()
         self.n_mel_channels = n_mel_channels
         self.sampling_rate = sampling_rate

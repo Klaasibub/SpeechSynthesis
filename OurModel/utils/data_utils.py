@@ -41,7 +41,7 @@ from scipy.io.wavfile import read
 from tps import prob2bool, symbols, cleaners
 
 from modules import layers
-from utils.utils import load_filepaths_and_text, Inputs, InputsCTC
+from utils.utils import load_filepaths_and_text, load_fpaths_embed_text, Inputs, InputsCTC
 from modules.loss_function import AttentionTypes
 
 
@@ -127,7 +127,8 @@ class TextMelLoader(torch.utils.data.Dataset):
         sequence = self.get_text(text, mask_stress, mask_phonemes)
         mel = self.get_mel(audio_name)
 
-        speaker_emb = np.load(embed_path)
+
+        speaker_emb = torch.from_numpy(np.load(embed_path))
 
         alignment = None
         if self.get_alignments:
@@ -138,7 +139,7 @@ class TextMelLoader(torch.utils.data.Dataset):
         if self.use_mmi:
             ctc_sequence = self.get_ctc_text(sequence.data.cpu().numpy())
 
-        return sequence, mel, alignment, ctc_sequence, speaker_emb.astype(np.float32)
+        return sequence, mel, alignment, ctc_sequence, speaker_emb
 
 
     def get_text(self, text, mask_stress=None, mask_phonemes=None):
@@ -160,13 +161,15 @@ class TextMelLoader(torch.utils.data.Dataset):
 
 
     def get_audio(self, filename, trim_silence=False, add_silence=False):
+
         filepath = os.path.join(self.audio_path, filename)
 
-        sample_rate, audio = read(filepath)
-        audio = np.float32(audio / self.max_wav_value) # faster than loading using librosa
+        audio = np.load(filepath).astype(np.float32)
+        # sample_rate, audio = read(filepath)
+        # audio = np.float32(audio / self.max_wav_value) # faster than loading using librosa
 
-        if sample_rate != self.sampling_rate:
-            raise ValueError("{} SR doesn't match target {} SR".format(sample_rate, self.sampling_rate))
+        # if sample_rate != self.sampling_rate:
+        #     raise ValueError("{} SR doesn't match target {} SR".format(sample_rate, self.sampling_rate))
 
         audio_ = audio.copy()
 
@@ -202,7 +205,7 @@ class TextMelLoader(torch.utils.data.Dataset):
             melspec = torch.squeeze(melspec, 0)
         else:
             filepath = os.path.join(self.audio_path, filename)
-            melspec = torch.from_numpy(np.load(filepath))
+            melspec = torch.from_numpy(np.load(filepath)).T
             assert melspec.size(0) == self.stft.n_mel_channels, (
                 'Mel dimension mismatch: given {}, expected {}'.format(
                     melspec.size(0), self.stft.n_mel_channels))
@@ -288,7 +291,7 @@ class TextMelCollate:
         output_lengths = torch.LongTensor(batchsize)
 
         for i, idx in enumerate(ids_sorted_decreasing):
-            text, mel, alignment, ctc_text = batch[idx]
+            text, mel, alignment, ctc_text, speaker_emb = batch[idx]
 
             in_len = text.size(0)
             target_len = mel.size(1)
@@ -313,7 +316,7 @@ class TextMelCollate:
         #     assert max_target_len % self.n_frames_per_step == 0
 
         inputs = Inputs(text=text_padded, mels=mel_padded, gate=gate_padded,
-                        text_len=input_lengths, mel_len=output_lengths)
+                        text_len=input_lengths, mel_len=output_lengths, speaker_emb=speaker_emb)
 
         inputs_ctc = InputsCTC(text=ctc_text_padded, length=ctc_text_lengths) if get_ctc_text else None
 

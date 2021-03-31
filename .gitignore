@@ -1,4 +1,6 @@
 __pycache__/
+*_err.err
+*_out.log
 SBATCH_*
 LibriTTS/
 pretrained_models/

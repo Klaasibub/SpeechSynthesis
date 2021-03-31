@@ -661,7 +661,7 @@ class Tacotron2(nn.Module):
 
 
     def parse_batch(self, batch):
-        inputs, alignments, inputs_ctc, speaker_emb = batch
+        inputs, alignments, inputs_ctc = batch
 
         inputs = utl.Inputs(
             text=utl.to_gpu(inputs.text).long(),
@@ -669,7 +669,7 @@ class Tacotron2(nn.Module):
             gate=utl.to_gpu(inputs.gate).float(),
             text_len=utl.to_gpu(inputs.text_len).long(),
             mel_len=utl.to_gpu(inputs.mel_len).long(),
-            speaker_emb=speaker_emb,
+            speaker_emb=utl.to_gpu(inputs.speaker_emb).long(),
         )
 
         if alignments is not None:
@@ -708,7 +708,7 @@ class Tacotron2(nn.Module):
         return decoder_outputs
 
 
-    def forward(self, inputs **kwargs):
+    def forward(self, inputs, **kwargs):
         text, mels, _, text_lengths, output_lengths, speaker_emb = inputs
 
         text_lengths, output_lengths = text_lengths.data, output_lengths.data
@@ -721,6 +721,7 @@ class Tacotron2(nn.Module):
             encoder_outputs += gst_outputs.style_emb.expand_as(encoder_outputs)
 
         # TODO: maybe check is not None
+        speaker_emb = speaker_emb.repeat(2)
         encoder_outputs += speaker_emb.expand_as(encoder_outputs)
 
         p_teacher_forcing = 1.0
