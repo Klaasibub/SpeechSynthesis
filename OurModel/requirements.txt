@@ -1,8 +1,9 @@
-# torch===1.4.0 https://download.pytorch.org/whl/torch_stable.html
+torch==1.7.0
 scipy==1.4.1
-numpy==1.18.5
-librosa==0.7.2
+librosa==0.8.0
 matplotlib==2.1.0
-pillow
 torch_optimizer==0.0.1a15
--e git+https://github.com/sovaai/sova-tts-tps#egg=TPS
+tensorboard==1.15.0
+tqdm
+pyaml
+-e git+https://github.com/sovaai/sova-tts-tps@v1.1.0#egg=TPS

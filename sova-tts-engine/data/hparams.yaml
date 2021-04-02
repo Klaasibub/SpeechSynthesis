@@ -23,6 +23,7 @@ cudnn_enabled: True
 cudnn_benchmark: False
 
 ignore_layers: ['embedding.weight']
+ignore_mismatched_layers: True  # automatically ignore checkpoint layers with another shape
 
 ################################
 # Data Parameters             #
@@ -36,8 +37,8 @@ training_files: "/home/sidenko/my/natasha/natasha_train.txt"
 validation_files: "/home/sidenko/my/natasha/natasha_val.txt"
 inference_files: "inference.txt"
 
-charset: "ru_trans" # possible entries: en, ru, ru_trans
-text_handler_cfg: data/text_handler_cfg.yaml
+charset: "ru" # possible entries: en, ru, ru_trans
+text_handler_cfg: "data/text_handler_cfg.yaml"
 
 # mask_stress: Union[float, bool]. If float, the number must be in {0, 1} - the probability of masking stressed
 # words into learning process (passing them unstressed)

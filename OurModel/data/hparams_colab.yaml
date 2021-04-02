@@ -6,8 +6,8 @@ device: "cuda:0"
 epochs: 100
 iters_per_checkpoint: 1000
 
-output_dir: "/home/sidenko/my/output"
-log_dir: "/home/sidenko/my/logdir"
+output_dir: "/content/output"
+log_dir: "/content/logdir"
 
 checkpoint: 
 warm_start: true
@@ -29,12 +29,12 @@ ignore_mismatched_layers: True  # automatically ignore checkpoint layers with an
 # Data Parameters             #
 ################################
 load_mel_from_disk: False
-audios_path: "/home/sidenko/my/SV2TTS/synthesizer"
+audios_path: "/content/dataset/wavs"
 alignments_path:
   original:
   stressed:
-training_files: "/home/sidenko/my/SV2TTS/synthesizer/train.txt"
-validation_files: "/home/sidenko/my/SV2TTS/synthesizer/val.txt"
+training_files: "/content/dataset/train.txt"
+validation_files: "/content/dataset/val.txt"
 inference_files: "inference.txt"
 
 charset: "ru" # possible entries: en, ru, ru_trans

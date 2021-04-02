@@ -73,19 +73,17 @@ def load_global_mean(path):
 
 
 def get_mask_from_lengths(lengths):
-    max_len = torch.max(lengths).item()
-    ids = torch.arange(0, max_len, out=torch.cuda.LongTensor(max_len))
-    mask = (ids < lengths.unsqueeze(1)).bool()
+    max_len = lengths.max()
+    ids = torch.arange(max_len, device=lengths.device)
+    mask = ids < lengths.unsqueeze(1)
     return mask
 
 
 def get_mask_3d(widths, heights):
-    max_w = torch.max(widths).item()
-    max_h = torch.max(heights).item()
-    mask = torch.zeros(widths.size(0), max_w, max_h, device=widths.device)
-    for i in range(widths.size(0)):
-        mask[i, :widths[i], :heights[i]] = 1
-    return mask.bool()
+    mask_width = get_mask_from_lengths(widths)
+    mask_height = get_mask_from_lengths(heights)
+    mask_3d = mask_width.unsqueeze(2) & mask_height.unsqueeze(1)
+    return mask_3d
 
 
 def get_drop_frame_mask_from_lengths(lengths, drop_frame_rate):
@@ -112,19 +110,17 @@ def dropout_frame(mels, global_mean, mel_lengths, drop_frame_rate):
 
 def load_filepaths_and_text(filename, split="|"):
     with open(filename, encoding='utf-8') as f:
-        filepaths_and_text = [line.strip().split(split)[:2] for line in f]
+        filepaths_and_text = [line.strip().split(split) for line in f]
     return filepaths_and_text
 
 
 def load_fpaths_embed_text(filename, split="|"):
+    fpaths_embed_text = []
     with open(filename, encoding='utf-8') as f:
-        fpaths_embed_text = [line.strip().split(split)[:3] for line in f]
-
-    # fpaths_embed_text = []
-    # with open(filename, encoding='utf-8') as f:
-    #     for line in f:
-    #         line = line.strip().split(split)
-    #        fpaths_embed_text.append((line[1],line[2],line[5]))
+        for line in f:
+            line = line.strip().split(split)
+            # line like audio|mel|embed|...|text
+            fpaths_embed_text.append((line[0],line[2],line[-1]))
     return fpaths_embed_text
 
 
@@ -134,3 +130,7 @@ def to_gpu(x):
     if torch.cuda.is_available():
         x = x.cuda(non_blocking=True)
     return torch.autograd.Variable(x)
+
+
+def to_numpy(tensor):
+    return tensor.data.cpu().numpy()

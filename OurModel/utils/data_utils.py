@@ -46,9 +46,9 @@ from modules.loss_function import AttentionTypes
 
 
 ctc_mapping = {
-    symbols.Charset.en: symbols.english.EN_SET,
-    symbols.Charset.ru: symbols.russian.RU_SET,
-    symbols.Charset.ru_trans: symbols.russian.RU_TRANS_SET
+    symbols.Charset.en: symbols.en.EN_SET,
+    symbols.Charset.ru: symbols.ru.RU_SET,
+    symbols.Charset.ru_trans: symbols.ru.RU_TRANS_SET
 }
 
 
@@ -70,7 +70,7 @@ class TextMelLoader(torch.utils.data.Dataset):
     def __init__(self, text_handler, filelist_path, hparams):
         self.text_handler = text_handler
 
-        self.data = load_fpaths_embed_text(filelist_path)
+        self.data = load_filepaths_and_text(filelist_path)
         self.audio_path = hparams.audios_path
         self.alignment_path = hparams.alignments_path
 
@@ -143,17 +143,13 @@ class TextMelLoader(torch.utils.data.Dataset):
 
 
     def get_text(self, text, mask_stress=None, mask_phonemes=None):
-        if mask_stress is None:
-            mask_stress =  self._prob2bool(self.mask_stress)
-
-        if mask_phonemes is None:
-            mask_phonemes =  self._prob2bool(self.mask_phonemes)
-
-        preprocessed_text = self.text_handler(
+        mask_stress = mask_stress or self._prob2bool(self.mask_stress)
+        mask_phonemes = mask_phonemes or self._prob2bool(self.mask_phonemes)
+        preprocessed_text = self.text_handler.process_text(
             text, cleaners.light_punctuation_cleaners, None, False,
             mask_stress=mask_stress, mask_phonemes=mask_phonemes
         )
-        preprocessed_text = self.text_handler.check_eos(" ".join(preprocessed_text))
+        preprocessed_text = self.text_handler.check_eos(preprocessed_text)
         text_vector = self.text_handler.text2vec(preprocessed_text)
 
         text_tensor = torch.IntTensor(text_vector)
@@ -163,13 +159,14 @@ class TextMelLoader(torch.utils.data.Dataset):
     def get_audio(self, filename, trim_silence=False, add_silence=False):
 
         filepath = os.path.join(self.audio_path, filename)
+        if filepath.endswith('.npy'):
+            audio = np.load(filepath).astype(np.float32)
+        else:
+            sample_rate, audio = read(filepath)
+            audio = np.float32(audio / self.max_wav_value) # faster than loading using librosa
 
-        audio = np.load(filepath).astype(np.float32)
-        # sample_rate, audio = read(filepath)
-        # audio = np.float32(audio / self.max_wav_value) # faster than loading using librosa
-
-        # if sample_rate != self.sampling_rate:
-        #     raise ValueError("{} SR doesn't match target {} SR".format(sample_rate, self.sampling_rate))
+            if sample_rate != self.sampling_rate:
+                raise ValueError("{} SR doesn't match target {} SR".format(sample_rate, self.sampling_rate))
 
         audio_ = audio.copy()
 
@@ -205,7 +202,7 @@ class TextMelLoader(torch.utils.data.Dataset):
             melspec = torch.squeeze(melspec, 0)
         else:
             filepath = os.path.join(self.audio_path, filename)
-            melspec = torch.from_numpy(np.load(filepath)).T
+            melspec = torch.from_numpy(np.load(filepath))
             assert melspec.size(0) == self.stft.n_mel_channels, (
                 'Mel dimension mismatch: given {}, expected {}'.format(
                     melspec.size(0), self.stft.n_mel_channels))

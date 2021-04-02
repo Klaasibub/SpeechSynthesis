@@ -26,8 +26,7 @@ def load_checkpoint(checkpoint_path, model):
     return model
 
 
-def inference(hparams, checkpoint_path):
-
+def inference(hparams, checkpoint_path, output_path):
     torch.manual_seed(hparams.seed)
     torch.cuda.manual_seed(hparams.seed)
 
@@ -42,6 +41,8 @@ def inference(hparams, checkpoint_path):
         model = amp.initialize(model, opt_level="O2")
 
     _ = model.cuda().eval()
+
+    os.makedirs(output_path, exist_ok=True)
 
     embed_path = "/home/sidenko/my/output/inf/embed-common_voice_ru_18849004.npy"
     out_fname = embed_path.split('-')[-1].split('.')[0]
@@ -60,7 +61,7 @@ def inference(hparams, checkpoint_path):
     # ================ INFERENCE! ===================
     outputs = model.inference((text, embed))
     for idx, mel in enumerate(outputs.mels):
-        filename = f'inference_output/{out_fname}.pt'
+        filename = f'{output_path}/{out_fname}.pt'
         torch.save(mel, filename)
 
 
@@ -70,6 +71,8 @@ if __name__ == "__main__":
                         required=False, help="hparams path")
     parser.add_argument("-c", "--checkpoint_path", type=str, default=None,
                         required=False, help="checkpoint path")
+    parser.add_argument("-o", "--output_path", type=str, default='inference_output',
+                        required=False, help="output path")
     args = parser.parse_args()
 
     hparams = create_hparams(args.hparams_path)
@@ -93,4 +96,4 @@ if __name__ == "__main__":
     print("cuDNN Enabled:", hparams.cudnn_enabled)
     print("cuDNN Benchmark:", hparams.cudnn_benchmark)
 
-    inference(hparams, args.checkpoint_path)
+    inference(hparams, args.checkpoint_path, args.output_path)
