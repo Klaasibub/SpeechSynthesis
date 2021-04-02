@@ -282,7 +282,9 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.n_mel_channels = hparams.n_mel_channels
         self.n_frames_per_step = hparams.n_frames_per_step
-        self.encoder_embedding_dim = hparams.encoder_embedding_dim
+        self.encoder_embedding_dim = hparams.encoder_embedding_dim 
+        if hparams.multispeaker is not None:
+            self.encoder_embedding_dim += hparams.speaker_embedding_dim
         self.attention_rnn_dim = hparams.attention_rnn_dim
         self.decoder_rnn_dim = hparams.decoder_rnn_dim
         self.prenet_dim = hparams.prenet_dim
@@ -302,13 +304,13 @@ class Decoder(nn.Module):
         )
 
         self.attention_rnn = nn.LSTMCell(
-            input_size=hparams.prenet_dim + hparams.encoder_embedding_dim,
+            input_size=hparams.prenet_dim + self.encoder_embedding_dim,
             hidden_size=hparams.attention_rnn_dim
         )
 
         self.attention_layer = Attention(
             attention_rnn_dim=hparams.attention_rnn_dim,
-            embedding_dim=hparams.encoder_embedding_dim,
+            embedding_dim=self.encoder_embedding_dim,
             attention_dim=hparams.attention_dim,
             attention_location_n_filters=hparams.attention_location_n_filters,
             attention_location_kernel_size=hparams.attention_location_kernel_size,
@@ -316,7 +318,7 @@ class Decoder(nn.Module):
         )
 
         self.decoder_rnn = nn.LSTMCell(
-            input_size=hparams.attention_rnn_dim + hparams.encoder_embedding_dim,
+            input_size=hparams.attention_rnn_dim + self.encoder_embedding_dim,
             hidden_size=hparams.decoder_rnn_dim,
             bias=True
         )
@@ -326,7 +328,7 @@ class Decoder(nn.Module):
         self.mel_layer = None
         if not self.use_mmi:
             self.linear_projection = LinearNorm(
-                in_dim=hparams.decoder_rnn_dim + hparams.encoder_embedding_dim,
+                in_dim=hparams.decoder_rnn_dim + self.encoder_embedding_dim,
                 out_dim=lp_out_dim,
                 bias=True,
                 initscheme=hparams.initscheme
@@ -334,7 +336,7 @@ class Decoder(nn.Module):
         else:
             self.linear_projection = nn.Sequential(
                 LinearNorm(
-                    in_dim=hparams.decoder_rnn_dim + hparams.encoder_embedding_dim,
+                    in_dim=hparams.decoder_rnn_dim + self.encoder_embedding_dim,
                     out_dim=lp_out_dim,
                     bias=True,
                     initscheme=hparams.initscheme,
@@ -359,7 +361,7 @@ class Decoder(nn.Module):
             )
 
         gate_in_dim = hparams.decoder_rnn_dim if self.use_mmi else \
-            hparams.decoder_rnn_dim + hparams.encoder_embedding_dim
+            hparams.decoder_rnn_dim + self.encoder_embedding_dim
 
         self.gate_layer = LinearNorm(
             in_dim=gate_in_dim,
@@ -623,6 +625,7 @@ class Tacotron2(nn.Module):
         self.fp16_run = hparams.fp16_run
         self.n_mel_channels = hparams.n_mel_channels
         self.n_frames_per_step = hparams.n_frames_per_step
+        self.multispeaker = hparams.multispeaker
 
         self.embedding = nn.Embedding(get_symbols_length(hparams.charset), hparams.symbols_embedding_dim)
 
@@ -709,9 +712,10 @@ class Tacotron2(nn.Module):
             gst_outputs = self.gst(inputs=mels.transpose(2, 1), input_lengths=output_lengths)
             encoder_outputs += gst_outputs.style_emb.expand_as(encoder_outputs)
 
-        # TODO: maybe check is not None
-        speaker_emb = speaker_emb.repeat(2)
-        encoder_outputs += speaker_emb.expand_as(encoder_outputs)
+        if self.multispeaker:
+            speaker_emb_ = speaker_emb.expand(
+                encoder_outputs.size(0), encoder_outputs.size(1), -1)
+            encoder_outputs = torch.cat([encoder_outputs, speaker_emb_], dim=-1)
 
         p_teacher_forcing = 1.0
         if self.tf_replacement == "global_mean":
@@ -755,9 +759,10 @@ class Tacotron2(nn.Module):
             if gst_output is not None:
                 encoder_outputs += gst_output
 
-        # TODO: maybe check is not None
-        speaker_emb = speaker_emb.repeat(2)
-        encoder_outputs += speaker_emb.expand_as(encoder_outputs)
+        if self.multispeaker:
+            speaker_emb_ = speaker_emb.expand(
+                encoder_outputs.size(0), encoder_outputs.size(1), -1)
+            encoder_outputs = torch.cat([encoder_outputs, speaker_emb_], dim=-1)
 
         mel_outputs, gate_outputs, alignments = self.decoder.inference(encoder_outputs, max_decoder_steps)
 
