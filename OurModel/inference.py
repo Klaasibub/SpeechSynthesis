@@ -46,10 +46,10 @@ def inference(hparams, checkpoint_path, output_path):
 
     embed_path = "/home/sidenko/my/output/inf/embed-common_voice_ru_18849004.npy"
     out_fname = embed_path.split('-')[-1].split('.')[0]
-    embed = torch.from_numpy(np.load(embed_path))
+    embed = torch.from_numpy(np.load(embed_path)).to(device='cuda', dtype=torch.int64)
 
     text_handler = Handler.from_config(hparams.text_handler_cfg)
-    textLoader = TextMelLoader(text_handler, hparams.inference_files, hparams)
+    textLoader = TextMelLoader(text_handler, hparams.training_files, hparams)
 
     text = """где хохлатые хохотушки хохотом хохотали и кричали турке, который начерно обкурен трубкой: не кури, турка, трубку, купи лучше кипу пик, лучше пик кипу купи,
               а то придет бомбардир из Бранденбурга — бомбами забомбардирует"""
@@ -60,7 +60,7 @@ def inference(hparams, checkpoint_path, output_path):
 
     # ================ INFERENCE! ===================
     outputs = model.inference((text, embed))
-    for idx, mel in enumerate(outputs.mels):
+    for mel in outputs.mels:
         filename = f'{output_path}/{out_fname}.pt'
         torch.save(mel, filename)
 

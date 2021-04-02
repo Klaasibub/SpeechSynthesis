@@ -35,7 +35,6 @@ alignments_path:
   stressed:
 training_files: "/home/sidenko/my/SV2TTS/synthesizer/train.txt"
 validation_files: "/home/sidenko/my/SV2TTS/synthesizer/val.txt"
-inference_files: "inference.txt"
 
 charset: "ru" # possible entries: en, ru, ru_trans
 text_handler_cfg: "data/text_handler_cfg.yaml"
@@ -61,8 +60,8 @@ filter_length: 800
 hop_length: 200
 win_length: 800
 n_mel_channels: 80
-mel_fmin: 55.0
-mel_fmax: 7600.0
+mel_fmin: 0.0
+mel_fmax: 8000.0
 
 add_silence: True
 trim_silence: True
@@ -78,6 +77,10 @@ activation: "relu"
 encoder_kernel_size: 5
 encoder_n_convolutions: 3
 encoder_embedding_dim: 512
+
+# Speaker embedding
+speaker_embedding_dim: 256
+multispeaker: False
 
 # Decoder parameters
 n_frames_per_step: 1  # currently only 1 is supported

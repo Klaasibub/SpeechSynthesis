@@ -83,6 +83,7 @@ class TextMelLoader(torch.utils.data.Dataset):
         self.max_wav_value = hparams.max_wav_value
         self.sampling_rate = hparams.sampling_rate
         self.load_mel_from_disk = hparams.load_mel_from_disk
+        self.multispeaker = hparams.multispeaker
 
         self.stft = layers.TacotronSTFT(
             hparams.filter_length, hparams.hop_length, hparams.win_length,
@@ -126,10 +127,7 @@ class TextMelLoader(torch.utils.data.Dataset):
 
         sequence = self.get_text(text, mask_stress, mask_phonemes)
         mel = self.get_mel(audio_name)
-
-
-        speaker_emb = torch.from_numpy(np.load(embed_path))
-
+        speaker_emb = torch.from_numpy(np.load(embed_path)) if self.multispeaker else None
         alignment = None
         if self.get_alignments:
             target_shape = (mel.size(1), sequence.size(0))

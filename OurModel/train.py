@@ -196,7 +196,7 @@ def save_checkpoint(model, optimizer, lr_scheduler, criterion, iteration, hparam
     torch.save(train_dict, filepath)
 
 
-def validate(model, criterion, valset, iteration, batch_size, collate_fn, logger, distributed_run, rank, n_gpus):
+def validate(model, criterion, valset, iteration, batch_size, collate_fn, logger, distributed_run, rank, n_gpus, hparams):
     """Handles all the validation scoring and printing"""
     shuffle = not distributed_run
 
@@ -230,12 +230,48 @@ def validate(model, criterion, valset, iteration, batch_size, collate_fn, logger
                                for key, value in losses_dict.items()}
         reduced_losses_dict = {key: sum(value) / num_batches for key, value in reduced_losses_dict.items()}
 
+    short_infer(model, hparams, iteration)
+
     model.train()
     if rank == 0:
         print("Validation loss {}: {:9f}\n".format(iteration, reduced_losses_dict["overall/loss"]))
         logger.log_validation(reduced_losses_dict, model, inputs, outputs, iteration, alignments)
 
     return reduced_losses_dict["overall/loss"]
+
+
+def short_infer(model, hparams, iteration):
+    output_path = "D:/Рабочий Стол/output/mels"
+    embed_paths = [
+        "D:/Рабочий Стол/natasha_dataset/embeds/000001.npy",
+        "D:/Рабочий Стол/ruslan_dataset/embeds/000001.npy",
+        "D:/Рабочий Стол/ruslan_dataset/embeds/000101.npy",
+    ]
+    texts = [
+        """гд+е хохл+атые хохот+ушки х+охотом хохот+али и крич+али т+урке, кот+орый н+ачерно обк+урен тр+убкой""",
+        """не кур+и, т+урка, тр+убку! куп+и л+учше кипу пик... лучше пик кипу купи""",
+        """а то придет бомбардир из Бранденбурга — бомбами забомбардирует"""
+    ]
+    speakers = ['natasha', 'ruslan', 'ruslan']
+
+    os.makedirs(output_path, exist_ok=True)
+
+    for embed_path, text, speaker in zip(embed_paths, texts, speakers):
+        out_fname = embed_path.split('-')[-1].split('.')[0].split('/')[-1]
+        embed = torch.from_numpy(np.load(embed_path)).to(device='cuda', dtype=torch.int64)
+
+        text_handler = Handler.from_config(hparams.text_handler_cfg)
+        textLoader = TextMelLoader(text_handler, hparams.training_files, hparams)
+
+        text = textLoader.get_text(text)
+        text = np.array(text)[None, :]
+        text = torch.from_numpy(text).to(device='cuda', dtype=torch.int64)
+
+        # ================ INFERENCE! ===================
+        outputs = model.inference((text, embed))
+        for mel in outputs.mels:
+            filename = f'{output_path}/iteration-{iteration}-{speaker}-{out_fname}.pt'
+            torch.save(mel, filename)
 
 
 def train(hparams, distributed_run=False, rank=0, n_gpus=None):
@@ -289,6 +325,11 @@ def train(hparams, distributed_run=False, rank=0, n_gpus=None):
             model.zero_grad()
             inputs, alignments, inputs_ctc = model.parse_batch(batch)
 
+            for mel in inputs.mels:
+                filename = f'D:/Рабочий Стол/output/mels/from_inputs.pt'
+                torch.save(mel, filename)
+                break
+
             with amp.autocast(enabled=hparams.fp16_run):
                 outputs, decoder_outputs = model(inputs)
 
@@ -330,7 +371,7 @@ def train(hparams, distributed_run=False, rank=0, n_gpus=None):
 
             if iteration % hparams.iters_per_checkpoint == 0:
                 val_loss = validate(model, criterion, valset, iteration, hparams.batch_size, collate_fn, logger,
-                                    distributed_run, rank, n_gpus)
+                                    distributed_run, rank, n_gpus, hparams)
                 if rank == 0:
                     checkpoint = os.path.join(
                         hparams.output_dir, "checkpoint_{}".format(iteration))
@@ -345,7 +386,7 @@ def train(hparams, distributed_run=False, rank=0, n_gpus=None):
             if hparams.lr_scheduler == SchedulerTypes.plateau:
                 lr_scheduler.step(
                     validate(model, criterion, valset, iteration, hparams.batch_size, collate_fn,
-                             logger, distributed_run, rank, n_gpus)
+                             logger, distributed_run, rank, n_gpus, hparams)
                 )
             else:
                 lr_scheduler.step()

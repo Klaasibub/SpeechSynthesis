@@ -35,7 +35,6 @@ alignments_path:
   stressed:
 training_files: "/content/dataset/train.txt"
 validation_files: "/content/dataset/val.txt"
-inference_files: "inference.txt"
 
 charset: "ru" # possible entries: en, ru, ru_trans
 text_handler_cfg: "data/text_handler_cfg.yaml"
@@ -78,6 +77,10 @@ activation: "relu"
 encoder_kernel_size: 5
 encoder_n_convolutions: 3
 encoder_embedding_dim: 512
+
+# Speaker embedding
+speaker_embedding_dim: 256
+multispeaker: False
 
 # Decoder parameters
 n_frames_per_step: 1  # currently only 1 is supported
