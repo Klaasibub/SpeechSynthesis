@@ -61,10 +61,10 @@ def preprocess_speaker(speaker_dir, out_dir: Path, skip_existing: bool, hparams,
     book_dir = speaker_dir
     extension = "*.wav"
     utterances = []
-    with open("/home/sidenko/my/ru_dataset/part2.txt", "r", encoding="utf-8") as f:
+    with open("~/my/natasha_dataset/marks.txt", "r", encoding="utf-8") as f:
         lines = [line.split('|') for line in f.readlines() if len(line.split('|')) > 1]
     for line in lines:
-        wav_fpath = f'/home/sidenko/my/ru_dataset/{line[0]}'
+        wav_fpath = f'~/my/natasha_dataset/{line[0]}'
         wav, _ = librosa.load(str(wav_fpath), hparams.sample_rate)
         if hparams.rescale:
             wav = wav / np.abs(wav).max() * hparams.rescaling_max
@@ -76,7 +76,7 @@ def preprocess_speaker(speaker_dir, out_dir: Path, skip_existing: bool, hparams,
             wav = nr.reduce_noise(audio_clip=wav, noise_clip=noisy_part, verbose=False)
 
 
-        text = line[1]
+        text = line[-1]
         text = text.strip()
 
         # Process the utterance
@@ -200,7 +200,9 @@ def process_utterance(wav: np.ndarray, text: str, out_dir: Path, basename: str,
         return None
     
     # Write the spectrogram, embed and audio to disk
-    np.save(mel_fpath, mel_spectrogram.T, allow_pickle=False)
+
+    # TODO: Enable after tests.
+    # np.save(mel_fpath, mel_spectrogram.T, allow_pickle=False)
     np.save(wav_fpath, wav, allow_pickle=False)
     
     # Return a tuple describing this training example
