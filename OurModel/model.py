@@ -283,7 +283,7 @@ class Decoder(nn.Module):
         self.n_mel_channels = hparams.n_mel_channels
         self.n_frames_per_step = hparams.n_frames_per_step
         self.encoder_embedding_dim = hparams.encoder_embedding_dim 
-        if hparams.multispeaker is not None:
+        if hparams.multispeaker:
             self.encoder_embedding_dim += hparams.speaker_embedding_dim
         self.attention_rnn_dim = hparams.attention_rnn_dim
         self.decoder_rnn_dim = hparams.decoder_rnn_dim
@@ -664,7 +664,7 @@ class Tacotron2(nn.Module):
             gate=utl.to_gpu(inputs.gate).float(),
             text_len=utl.to_gpu(inputs.text_len).long(),
             mel_len=utl.to_gpu(inputs.mel_len).long(),
-            speaker_emb=utl.to_gpu(inputs.speaker_emb).long(),
+            speaker_emb=utl.to_gpu(inputs.speaker_emb).long() if self.multispeaker else None,
         )
 
         if alignments is not None:

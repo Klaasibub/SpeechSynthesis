@@ -11,4 +11,4 @@ source activate voice
 
 echo Assigned GPUs: $CUDA_VISIBLE_DEVICES
 
-srun tensorboard dev upload --logdir '/home/sidenko/my/logdir'
+srun tensorboard dev upload --logdir '/home/zolkin/logdir'

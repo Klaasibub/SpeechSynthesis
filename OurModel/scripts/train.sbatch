@@ -11,4 +11,4 @@ source activate voice
 
 echo Assigned GPUs: $CUDA_VISIBLE_DEVICES
 
-srun sh ./train.sh
+srun python ./train.py -p=./data/hparams_home.yaml

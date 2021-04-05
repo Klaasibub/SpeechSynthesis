@@ -6,8 +6,8 @@ device: "cuda:0"
 epochs: 100
 iters_per_checkpoint: 1000
 
-output_dir: "~/my/output"
-log_dir: "~/my/logdir"
+output_dir: "/home/zolkin/my/output"
+log_dir: "/home/zolkin/my/logdir"
 
 checkpoint: 
 warm_start: true
@@ -29,12 +29,13 @@ ignore_mismatched_layers: True  # automatically ignore checkpoint layers with an
 # Data Parameters             #
 ################################
 load_mel_from_disk: False
-audios_path: "~/my/natasha_dataset"
+audios_path: "/home/zolkin/my/natasha_dataset"
 alignments_path:
   original:
   stressed:
-training_files: "~/my/natasha_dataset/train_1.txt"
-validation_files: "~/my/natasha_dataset/val_1.txt"
+
+training_files: "/home/zolkin/natasha_dataset/train_2.txt"
+validation_files: "/home/zolkin/natasha_dataset/val_2.txt"
 
 charset: "ru" # possible entries: en, ru, ru_trans
 text_handler_cfg: "data/text_handler_cfg.yaml"
@@ -60,8 +61,8 @@ filter_length: 800
 hop_length: 200
 win_length: 800
 n_mel_channels: 80
-mel_fmin: 55.0
-mel_fmax: 7600.0
+mel_fmin: 0.0
+mel_fmax: 8000.0
 
 add_silence: True
 trim_silence: True

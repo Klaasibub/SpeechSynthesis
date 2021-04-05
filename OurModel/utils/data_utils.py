@@ -123,7 +123,10 @@ class TextMelLoader(torch.utils.data.Dataset):
         mask_stress =  self._prob2bool(self.mask_stress)
         mask_phonemes = self._prob2bool(self.mask_phonemes)
 
-        audio_name, embed_path, text = sample
+        if len(sample) == 2:
+            audio_name, text = sample
+        else:
+            audio_name, embed_path, text = sample
 
         sequence = self.get_text(text, mask_stress, mask_phonemes)
         mel = self.get_mel(audio_name)
